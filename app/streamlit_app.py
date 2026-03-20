@@ -1,0 +1,439 @@
+import streamlit as st
+import plotly.graph_objects as go
+import plotly.express as px
+from datetime import datetime
+import sys
+import os
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from pipeline.agent import run_agent
+from pipeline.financial_data import (get_financial_metrics,
+                                     get_quarterly_financials,
+                                     format_metrics_for_llm)
+from ingestion.embedder import (get_chroma_client,
+                                get_collection,
+                                embed_company)
+from utils.logger import get_logger
+
+logger = get_logger("streamlit_app", "pipeline.log")
+
+# ── PAGE CONFIG ──────────────────────────────────────────────────
+st.set_page_config(
+    page_title="Earnings Analyzer",
+    page_icon="📈",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# ── CUSTOM CSS ───────────────────────────────────────────────────
+st.markdown("""
+<style>
+    .main-header {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #1f77b4;
+        margin-bottom: 0.5rem;
+    }
+    .sub-header {
+        font-size: 1rem;
+        color: #666;
+        margin-bottom: 2rem;
+    }
+    .metric-card {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 1rem;
+        border-left: 4px solid #1f77b4;
+    }
+    .answer-box {
+        background: #f0f7ff;
+        border-radius: 10px;
+        padding: 1.5rem;
+        border-left: 4px solid #1f77b4;
+        margin: 1rem 0;
+    }
+    .source-box {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 0.8rem;
+        margin: 0.3rem 0;
+        font-size: 0.85rem;
+        color: #555;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+
+# ── SESSION STATE ────────────────────────────────────────────────
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+if "current_ticker" not in st.session_state:
+    st.session_state.current_ticker = None
+if "metrics" not in st.session_state:
+    st.session_state.metrics = None
+if "quarterly_data" not in st.session_state:
+    st.session_state.quarterly_data = None
+
+
+# ── HELPER FUNCTIONS ─────────────────────────────────────────────
+def check_data_exists(ticker: str) -> bool:
+    """Check if ticker data is already in ChromaDB"""
+    try:
+        client = get_chroma_client()
+        collection = get_collection(client)
+        existing = collection.get(
+            where={"ticker": ticker.upper()}
+        )
+        return len(existing["ids"]) > 0
+    except Exception:
+        return False
+
+
+def ingest_ticker(ticker: str, quarters: int = 8):
+    """Ingest company data with progress indicator"""
+    with st.spinner(f"Fetching {ticker} SEC filings "
+                   f"({quarters} quarters + annual reports)..."):
+        try:
+            embed_company(ticker, quarters=quarters)
+            return True
+        except Exception as e:
+            st.error(f"Failed to ingest data: {e}")
+            return False
+
+
+def load_financial_data(ticker: str):
+    """Load live financial metrics and quarterly data"""
+    with st.spinner(f"Loading live financial data for {ticker}..."):
+        metrics = get_financial_metrics(ticker)
+        quarterly = get_quarterly_financials(ticker)
+        return metrics, quarterly
+
+
+def create_revenue_chart(quarterly_data: dict) -> go.Figure:
+    """Creates quarterly revenue trend chart"""
+    if not quarterly_data or not quarterly_data.get("quarters"):
+        return None
+
+    quarters = quarterly_data["quarters"]
+    revenue = quarterly_data["revenue"]
+
+    # Filter out None values
+    valid_data = [(q, r) for q, r in zip(quarters, revenue)
+                 if r is not None]
+
+    if not valid_data:
+        return None
+
+    quarters_clean, revenue_clean = zip(*valid_data)
+    revenue_billions = [r / 1e9 for r in revenue_clean]
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Bar(
+        x=list(quarters_clean),
+        y=revenue_billions,
+        marker_color="#1f77b4",
+        name="Revenue",
+        hovertemplate="Quarter: %{x}<br>Revenue: $%{y:.2f}B<extra></extra>"
+    ))
+
+    fig.add_trace(go.Scatter(
+        x=list(quarters_clean),
+        y=revenue_billions,
+        mode="lines+markers",
+        line=dict(color="#ff7f0e", width=2),
+        marker=dict(size=8),
+        name="Trend",
+        hovertemplate="Quarter: %{x}<br>Revenue: $%{y:.2f}B<extra></extra>"
+    ))
+
+    fig.update_layout(
+        title="Quarterly Revenue Trend",
+        xaxis_title="Quarter",
+        yaxis_title="Revenue (Billions USD)",
+        height=400,
+        showlegend=True,
+        plot_bgcolor="white",
+        paper_bgcolor="white",
+        xaxis=dict(showgrid=True, gridcolor="#eee"),
+        yaxis=dict(showgrid=True, gridcolor="#eee")
+    )
+
+    return fig
+
+
+def create_margins_chart(metrics: dict) -> go.Figure:
+    """Creates profit margins comparison chart"""
+    if not metrics:
+        return None
+
+    margin_data = {
+        "Gross Margin": metrics.get("gross_margin", 0),
+        "Profit Margin": metrics.get("profit_margin", 0)
+    }
+
+    labels = []
+    values = []
+    for label, value in margin_data.items():
+        if value and value != "N/A":
+            try:
+                labels.append(label)
+                values.append(float(value) * 100)
+            except Exception:
+                pass
+
+    if not values:
+        return None
+
+    fig = go.Figure(go.Bar(
+        x=labels,
+        y=values,
+        marker_color=["#2ecc71", "#3498db"],
+        hovertemplate="%{x}: %{y:.1f}%<extra></extra>"
+    ))
+
+    fig.update_layout(
+        title="Profit Margins",
+        yaxis_title="Percentage (%)",
+        height=300,
+        plot_bgcolor="white",
+        paper_bgcolor="white",
+        yaxis=dict(showgrid=True, gridcolor="#eee")
+    )
+
+    return fig
+
+
+# ── SIDEBAR ──────────────────────────────────────────────────────
+with st.sidebar:
+    st.markdown("## 📈 Earnings Analyzer")
+    st.markdown("---")
+
+    # Ticker input
+    ticker_input = st.text_input(
+        "Enter Stock Ticker",
+        placeholder="e.g. AAPL, MSFT, TSLA",
+        help="Enter any US publicly traded company ticker"
+    ).upper().strip()
+
+    quarters = st.slider(
+        "Quarters to analyze",
+        min_value=2,
+        max_value=8,
+        value=4,
+        help="Number of quarterly filings to ingest"
+    )
+
+    analyze_button = st.button(
+        "Analyze Company",
+        type="primary",
+        use_container_width=True
+    )
+
+    if analyze_button and ticker_input:
+        if ticker_input != st.session_state.current_ticker:
+            # Reset chat history for new ticker
+            st.session_state.messages = []
+            st.session_state.current_ticker = ticker_input
+            st.session_state.metrics = None
+            st.session_state.quarterly_data = None
+
+        # Check if data exists
+        if not check_data_exists(ticker_input):
+            st.info(f"No data found for {ticker_input}. "
+                   f"Ingesting now...")
+            success = ingest_ticker(ticker_input, quarters)
+            if success:
+                st.success(f"Successfully ingested "
+                          f"{ticker_input} data!")
+        else:
+            st.success(f"Data already loaded for {ticker_input}")
+
+        # Load financial metrics
+        metrics, quarterly = load_financial_data(ticker_input)
+        st.session_state.metrics = metrics
+        st.session_state.quarterly_data = quarterly
+
+    st.markdown("---")
+
+    # Example questions
+    st.markdown("### Example Questions")
+    example_questions = [
+        "What was the most recent quarterly revenue?",
+        "Is this a good investment right now?",
+        "What are the main risk factors?",
+        "How has revenue trended recently?",
+        "What is the current P/E ratio?",
+        "Which segment is driving growth?"
+    ]
+
+    for q in example_questions:
+        if st.button(q, use_container_width=True, key=q):
+            if st.session_state.current_ticker:
+                full_question = (f"{st.session_state.current_ticker}"
+                               f": {q}")
+                st.session_state.messages.append({
+                    "role": "user",
+                    "content": full_question
+                })
+            else:
+                st.warning("Please analyze a company first!")
+
+    st.markdown("---")
+    st.markdown("### About")
+    st.markdown("""
+    This tool analyzes SEC filings and live financial 
+    data to answer questions about public companies.
+    
+    **Data Sources:**
+    - SEC EDGAR (official filings)
+    - Yahoo Finance (live metrics)
+    - Web search (latest news)
+    
+    **Built with:**
+    - Claude API (Anthropic)
+    - LangChain agents
+    - ChromaDB vector store
+    """)
+
+
+# ── MAIN CONTENT ─────────────────────────────────────────────────
+st.markdown('<div class="main-header">📈 Earnings Call Analyzer</div>',
+           unsafe_allow_html=True)
+st.markdown('<div class="sub-header">AI-powered financial analysis '
+           'using SEC filings, live data, and web search</div>',
+           unsafe_allow_html=True)
+
+# Show metrics dashboard if company is loaded
+if st.session_state.current_ticker and st.session_state.metrics:
+    metrics = st.session_state.metrics
+    ticker = st.session_state.current_ticker
+
+    st.markdown(f"### {metrics.get('company_name', ticker)} "
+               f"({ticker})")
+
+    # Key metrics row
+    col1, col2, col3, col4, col5 = st.columns(5)
+
+    with col1:
+        price = metrics.get("current_price", "N/A")
+        st.metric("Current Price",
+                 f"${price}" if price != "N/A" else "N/A")
+
+    with col2:
+        mktcap = metrics.get("market_cap", "N/A")
+        if mktcap != "N/A":
+            mktcap = f"${float(mktcap)/1e12:.2f}T"
+        st.metric("Market Cap", mktcap)
+
+    with col3:
+        pe = metrics.get("pe_ratio", "N/A")
+        st.metric("P/E Ratio",
+                 f"{float(pe):.1f}x" if pe != "N/A" else "N/A")
+
+    with col4:
+        margin = metrics.get("profit_margin", "N/A")
+        st.metric("Profit Margin",
+                 f"{float(margin)*100:.1f}%"
+                 if margin != "N/A" else "N/A")
+
+    with col5:
+        rec = metrics.get("recommendation", "N/A")
+        st.metric("Analyst Rec",
+                 rec.upper() if rec != "N/A" else "N/A")
+
+    st.markdown("---")
+
+    # Charts row
+    col1, col2 = st.columns([2, 1])
+
+    with col1:
+        if st.session_state.quarterly_data:
+            fig = create_revenue_chart(
+                st.session_state.quarterly_data
+            )
+            if fig:
+                st.plotly_chart(fig, use_container_width=True)
+
+    with col2:
+        fig2 = create_margins_chart(metrics)
+        if fig2:
+            st.plotly_chart(fig2, use_container_width=True)
+
+        # Additional metrics
+        st.markdown("**Key Metrics**")
+        target = metrics.get("analyst_target", "N/A")
+        high = metrics.get("52_week_high", "N/A")
+        low = metrics.get("52_week_low", "N/A")
+        div = metrics.get("dividend_yield", "N/A")
+
+        if target != "N/A":
+            st.write(f"Analyst Target: **${float(target):.2f}**")
+        if high != "N/A":
+            st.write(f"52W High: **${float(high):.2f}**")
+        if low != "N/A":
+            st.write(f"52W Low: **${float(low):.2f}**")
+        if div != "N/A":
+            st.write(f"Dividend Yield: **{float(div)*100:.2f}%**")
+
+    st.markdown("---")
+
+# Chat interface
+st.markdown("### Ask Anything About This Company")
+
+if not st.session_state.current_ticker:
+    st.info("Enter a stock ticker in the sidebar and click "
+           "'Analyze Company' to get started.")
+else:
+    # Display chat history
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    # Chat input
+    if prompt := st.chat_input(
+        f"Ask about {st.session_state.current_ticker}..."
+    ):
+        # Add user message
+        full_prompt = (f"{st.session_state.current_ticker}: "
+                      f"{prompt}"
+                      if st.session_state.current_ticker
+                      not in prompt
+                      else prompt)
+
+        st.session_state.messages.append({
+            "role": "user",
+            "content": prompt
+        })
+
+        with st.chat_message("user"):
+            st.markdown(prompt)
+
+        # Get agent response
+        with st.chat_message("assistant"):
+            with st.spinner("Analyzing..."):
+                try:
+                    result = run_agent(full_prompt)
+                    answer = result["answer"]
+
+                    st.markdown(answer)
+
+                    st.session_state.messages.append({
+                        "role": "assistant",
+                        "content": answer
+                    })
+
+                    logger.info(f"Chat response generated | "
+                               f"ticker={st.session_state.current_ticker}")
+
+                except Exception as e:
+                    error_msg = f"Error generating response: {e}"
+                    st.error(error_msg)
+                    logger.error(error_msg)
+
+    # Clear chat button
+    if st.session_state.messages:
+        if st.button("Clear Chat History"):
+            st.session_state.messages = []
+            st.rerun()
