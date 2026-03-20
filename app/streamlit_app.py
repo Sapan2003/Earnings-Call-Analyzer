@@ -18,6 +18,42 @@ from utils.logger import get_logger
 
 logger = get_logger("streamlit_app", "pipeline.log")
 
+@st.cache_resource
+def load_embedding_model():
+    """
+    Loads embedding model once at startup.
+    Persists across all reruns and user sessions.
+    Never reloads after first load — saves 6-8 seconds per query.
+    """
+    from chromadb.utils import embedding_functions
+    logger.info("Loading embedding model (one time only)...")
+    embedding_fn = (
+        embedding_functions
+        .SentenceTransformerEmbeddingFunction(
+            model_name="all-MiniLM-L6-v2"
+        )
+    )
+    logger.info("Embedding model loaded and cached")
+    return embedding_fn
+
+@st.cache_resource
+def load_chroma_collection():
+    """
+    Opens ChromaDB connection once at startup.
+    Reused across all queries — saves 2-3 seconds per query.
+    """
+    import chromadb
+    logger.info("Connecting to ChromaDB (one time only)...")
+    client = chromadb.PersistentClient(path="data/chroma_db")
+    embedding_fn = load_embedding_model()
+    collection = client.get_or_create_collection(
+        name="earnings_filings",
+        embedding_function=embedding_fn,
+        metadata={"hnsw:space": "cosine"}
+    )
+    logger.info("ChromaDB collection loaded and cached")
+    return collection
+
 # ── PAGE CONFIG ──────────────────────────────────────────────────
 st.set_page_config(
     page_title="Earnings Analyzer",
