@@ -156,7 +156,7 @@ def create_revenue_chart(quarterly_data: dict) -> go.Figure:
         showlegend=True,
         plot_bgcolor="white",
         paper_bgcolor="white",
-        xaxis=dict(showgrid=True, gridcolor="#eee"),
+        xaxis=dict(showgrid=True, gridcolor="#eee", tickangle=45),
         yaxis=dict(showgrid=True, gridcolor="#eee")
     )
 
@@ -375,7 +375,7 @@ if st.session_state.current_ticker and st.session_state.metrics:
         if low != "N/A":
             st.write(f"52W Low: **${float(low):.2f}**")
         if div != "N/A":
-            st.write(f"Dividend Yield: **{float(div)*100:.2f}%**")
+            st.write(f"Dividend Yield: **{float(div):.2f}%**")
 
     st.markdown("---")
 
