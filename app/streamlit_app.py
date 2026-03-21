@@ -97,7 +97,23 @@ st.markdown("""
         font-size: 0.85rem;
         color: #555;
     }
-    
+    .stChatMessage {
+    font-size: 1.2rem !important;
+    }
+
+    .stMarkdown p {
+        font-size: 1rem !important;
+        line-height: 1.6 !important;
+    }
+
+    .stChatInput input {
+        font-size: 1rem !important;
+    }
+
+    /* Sidebar text */
+    .sidebar .stMarkdown {
+        font-size: 0.95rem !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
