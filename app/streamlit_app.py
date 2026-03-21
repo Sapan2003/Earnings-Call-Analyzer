@@ -97,6 +97,7 @@ st.markdown("""
         font-size: 0.85rem;
         color: #555;
     }
+    
 </style>
 """, unsafe_allow_html=True)
 
@@ -310,11 +311,27 @@ with st.sidebar:
         if st.button(q, use_container_width=True, key=q):
             if st.session_state.current_ticker:
                 full_question = (f"{st.session_state.current_ticker}"
-                               f": {q}")
+                           f": {q}")
+            # Add to messages
                 st.session_state.messages.append({
-                    "role": "user",
-                    "content": full_question
+                "role": "user",
+                "content": q
                 })
+                # Process through agent immediately
+                with st.spinner("Analyzing..."):
+                    try:
+                        result = run_agent(full_question)
+                        answer = result["answer"]
+                        st.session_state.messages.append({
+                            "role": "assistant",
+                            "content": answer
+                        })
+                    except Exception as e:
+                        st.session_state.messages.append({
+                            "role": "assistant",
+                            "content": f"Error: {e}"
+                        })
+                st.rerun()
             else:
                 st.warning("Please analyze a company first!")
 
