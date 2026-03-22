@@ -1,4 +1,3 @@
-import os
 import chromadb
 from chromadb.utils import embedding_functions
 from utils.logger import get_logger
@@ -155,7 +154,7 @@ def get_collection_stats():
     collection = get_collection(client)
     count = collection.count()
     logger.info(f"ChromaDB collection has {count} chunks")
-    print(f"\n ChromaDB Stats:")
+    print("\n ChromaDB Stats:")
     print(f"   Collection: {COLLECTION_NAME}")
     print(f"   Total chunks stored: {count}")
     return count
@@ -176,3 +175,4 @@ if __name__ == "__main__":
     total = embed_company(ticker, quarters=quarters)
     print(f"Embedding complete! Total chunks embedded: {total}")
     get_collection_stats()
+    
