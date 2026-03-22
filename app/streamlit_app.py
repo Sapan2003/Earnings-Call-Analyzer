@@ -1,16 +1,12 @@
-import streamlit as st
-import plotly.graph_objects as go
-import plotly.express as px
-from datetime import datetime
 import sys
 import os
-
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import streamlit as st
+import plotly.graph_objects as go
 from pipeline.agent import run_agent
 from pipeline.financial_data import (get_financial_metrics,
-                                     get_quarterly_financials,
-                                     format_metrics_for_llm)
+                                     get_quarterly_financials)
 from ingestion.embedder import (get_chroma_client,
                                 get_collection,
                                 embed_company)
@@ -19,6 +15,8 @@ from utils.logger import get_logger
 logger = get_logger("streamlit_app", "pipeline.log")
 
 @st.cache_resource
+
+
 def load_embedding_model():
     """
     Loads embedding model once at startup.
@@ -37,6 +35,8 @@ def load_embedding_model():
     return embedding_fn
 
 @st.cache_resource
+
+
 def load_chroma_collection():
     """
     Opens ChromaDB connection once at startup.
@@ -130,6 +130,8 @@ if "quarterly_data" not in st.session_state:
 
 
 # ── HELPER FUNCTIONS ─────────────────────────────────────────────
+
+
 def check_data_exists(ticker: str) -> bool:
     """Check if ticker data is already in ChromaDB"""
     try:
@@ -328,8 +330,8 @@ with st.sidebar:
                            f": {q}")
             # Add to messages
                 st.session_state.messages.append({
-                "role": "user",
-                "content": q
+                    "role": "user",
+                    "content": q
                 })
                 # Process through agent immediately
                 with st.spinner("Analyzing..."):
@@ -352,14 +354,14 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### About")
     st.markdown("""
-    This tool analyzes SEC filings and live financial 
+    This tool analyzes SEC filings and live financial
     data to answer questions about public companies.
-    
+
     **Data Sources:**
     - SEC EDGAR (official filings)
     - Yahoo Finance (live metrics)
     - Web search (latest news)
-    
+
     **Built with:**
     - Claude API (Anthropic)
     - LangChain agents
