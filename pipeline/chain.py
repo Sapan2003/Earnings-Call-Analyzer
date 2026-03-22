@@ -9,7 +9,7 @@ logger = get_logger("chain", "pipeline.log")
 
 client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
-SYSTEM_PROMPT = """You are an expert financial analyst specializing in 
+SYSTEM_PROMPT = """You are an expert financial analyst specializing in
 analyzing SEC filings and earnings call data for publicly traded companies.
 
 Your job is to answer questions about company financial performance
@@ -63,7 +63,7 @@ def ask(question: str, ticker: str = None, k: int = 4) -> dict:
     context = format_context(chunks)
 
     # Step 3 - Build user message with context + question
-    user_message = f"""Based on the following SEC filing excerpts, 
+    user_message = f"""Based on the following SEC filing excerpts,
 please answer this question:
 
 QUESTION: {question}
@@ -71,7 +71,7 @@ QUESTION: {question}
 SEC FILING CONTEXT:
 {context}
 
-Please provide a detailed answer with specific numbers and cite 
+Please provide a detailed answer with specific numbers and cite
 which filing each piece of information comes from."""
 
     logger.info(f"Sending request to Claude | "
@@ -212,3 +212,4 @@ if __name__ == "__main__":
     if "tokens_used" in result:
         print(f"Tokens used: {result['tokens_used']['total']}")
         print(f"Estimated cost: ${result['tokens_used']['total'] * 0.000003:.6f}")
+        
