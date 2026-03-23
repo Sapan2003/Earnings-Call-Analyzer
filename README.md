@@ -108,7 +108,7 @@ JPM, BAC, GS, JNJ, UNH, WMT, KO, PG, BA, CAT
 
 ## Project Structure
 ```
-earnings-analyzer/
+earnings-call-analyzer/
 │
 ├── ingestion/
 │   ├── sec_fetcher.py        # SEC EDGAR API + 10-Q/10-K fetching
@@ -277,7 +277,7 @@ GitHub Actions runs automated checks on every push:
 | Every push | Lint check + unit tests |
 | Merge to main | Auto-deploy to Streamlit Cloud |
 
-[![CI Pipeline](https://github.com/Sapan2003/Earnings-analyzer/actions/workflows/ci.yml/badge.svg)](https://github.com/Sapan2003/Earnings-analyzer/actions)
+[![CI Pipeline](https://github.com/Sapan2003/Earnings-Call-Analyzer/actions/workflows/ci.yml/badge.svg)](https://github.com/Sapan2003/Earnings-Call-Analyzer/actions)
 
 ---
 
