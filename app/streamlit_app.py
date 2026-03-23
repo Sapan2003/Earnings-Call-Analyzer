@@ -325,7 +325,7 @@ with st.sidebar:
                 full_question = (
                     f"{st.session_state.current_ticker}: {q}"
                 )
-            # Add to messages
+                # Add to messages
                 st.session_state.messages.append({
                     "role": "user",
                     "content": q
