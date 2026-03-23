@@ -12,18 +12,33 @@ from utils.logger import get_logger
 load_dotenv()
 logger = get_logger("agent", "pipeline.log")
 
+
+def get_api_key() -> str:
+    """Get API key from environment or Streamlit secrets."""
+    key = os.getenv("ANTHROPIC_API_KEY")
+    if not key:
+        try:
+            import streamlit as st
+            key = st.secrets.get("ANTHROPIC_API_KEY")
+        except Exception:
+            pass
+    return key
+
+
+API_KEY = get_api_key()
+
 # Fast model for simple factual questions
 llm_fast = ChatAnthropic(
     model="claude-haiku-4-5-20251001",
     max_tokens=500,
-    anthropic_api_key=os.getenv("ANTHROPIC_API_KEY")
+    anthropic_api_key=API_KEY
 )
 
 # Powerful model for complex analysis
 llm_powerful = ChatAnthropic(
     model="claude-sonnet-4-20250514",
     max_tokens=1500,
-    anthropic_api_key=os.getenv("ANTHROPIC_API_KEY")
+    anthropic_api_key=API_KEY
 )
 
 
