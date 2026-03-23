@@ -41,6 +41,12 @@ def get_financial_metrics(ticker: str) -> dict | None:
             "recommendation": info.get("recommendationKey", "N/A"),
         }
 
+        # Return None if no valid data found
+        if (metrics["company_name"] == "N/A"
+                and metrics["current_price"] == "N/A"):
+            logger.warning(f"No valid data found for {ticker}")
+            return None
+        
         logger.info(f"Successfully fetched metrics for {ticker}")
         logger.debug(f"Metrics: {metrics}")
         return metrics
