@@ -56,7 +56,7 @@ def load_chroma_collection():
 
 # ── PAGE CONFIG ──────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Earnings Analyzer",
+    page_title="Earnings Call Analyzer",
     page_icon="📈",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -262,7 +262,7 @@ def create_margins_chart(metrics: dict) -> go.Figure:
 
 # ── SIDEBAR ──────────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("## 📈 Earnings Analyzer")
+    st.markdown("## 📈 Earnings Call Analyzer")
     st.markdown("---")
 
     # Ticker input
