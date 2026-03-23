@@ -1,22 +1,22 @@
 import sys
 import os
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import streamlit as st
-import plotly.graph_objects as go
-from pipeline.agent import run_agent
-from pipeline.financial_data import (get_financial_metrics,
+import streamlit as st # noqa: E402
+import plotly.graph_objects as go # noqa: E402
+from pipeline.agent import run_agent # noqa: E402
+from pipeline.financial_data import (get_financial_metrics, # noqa: E402
                                      get_quarterly_financials)
-from ingestion.embedder import (get_chroma_client,
+from ingestion.embedder import (get_chroma_client, # noqa: E402
                                 get_collection,
                                 embed_company)
-from utils.logger import get_logger
+from utils.logger import get_logger # noqa: E402
 
 logger = get_logger("streamlit_app", "pipeline.log")
 
+
 @st.cache_resource
-
-
 def load_embedding_model():
     """
     Loads embedding model once at startup.
@@ -34,9 +34,8 @@ def load_embedding_model():
     logger.info("Embedding model loaded and cached")
     return embedding_fn
 
+
 @st.cache_resource
-
-
 def load_chroma_collection():
     """
     Opens ChromaDB connection once at startup.
@@ -53,6 +52,7 @@ def load_chroma_collection():
     )
     logger.info("ChromaDB collection loaded and cached")
     return collection
+
 
 # ── PAGE CONFIG ──────────────────────────────────────────────────
 st.set_page_config(
@@ -326,8 +326,9 @@ with st.sidebar:
     for q in example_questions:
         if st.button(q, use_container_width=True, key=q):
             if st.session_state.current_ticker:
-                full_question = (f"{st.session_state.current_ticker}"
-                           f": {q}")
+                full_question = (
+                    f"{st.session_state.current_ticker}: {q}"
+                    )
             # Add to messages
                 st.session_state.messages.append({
                     "role": "user",
