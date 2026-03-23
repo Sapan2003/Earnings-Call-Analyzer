@@ -242,28 +242,41 @@ all companies via live yFinance data.
 
 **1. Revenue extraction varies by company (High Priority)**
 
-Accuracy drops on Google (55%) due to different SEC 
-filing structure. Each company uses different labels:
+The pipeline achieves 95% accuracy on Apple and 80% on
+Microsoft but drops to 55% on Google due to differences
+in SEC filing structure.
 
+Root cause: Each company uses different labels for revenue:
 | Company | Revenue Label |
-|---|---|
-| Apple | "Total net sales" |
-| Microsoft | "Total revenue" |
-| Google | "Revenues" |
+- Apple: "Total net sales"
+- Microsoft: "Total revenue"
+- Google: "Revenues"
 
-Planned fix: Company-specific extraction patterns.
+Planned fix: Add company-specific extraction patterns.
 
 **2. Analyst source attribution**
 
 yFinance free tier lacks source attribution for analyst 
-consensus data. Production solution: Bloomberg or FactSet API.
+consensus data. Production solution: Bloomberg or FactSet API for verified analyst data.
 
-**3. Planned Features**
-- [ ] Company-specific SEC filing parsers
+**3. ChromaDB Persistence**
+
+Streamlit Cloud free tier resets storage periodically.
+Current workaround: admin page at `/?admin=true` to
+re-ingest companies when needed.
+
+Planned fix: Migrate from local ChromaDB to Pinecone
+cloud vector database for persistent storage across
+deployments.
+
+### Planned Features
+- [ ] Company-specific SEC filing parsers for consistent accuracy
+- [ ] Migrate to Pinecone for persistent cloud vector storage
 - [ ] Earnings call audio transcript integration
 - [ ] CEO sentiment scoring over time
 - [ ] Competitor cross-analysis (compare 2 tickers)
-- [ ] Fine-tune embeddings on financial text domain
+- [ ] Fine-tune embeddings on financial domain text
+- [ ] Bloomberg/FactSet API for verified analyst data
 - [ ] Email alerts for significant trend changes
 
 ---
