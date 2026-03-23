@@ -296,14 +296,7 @@ with st.sidebar:
 
         # Check if data exists
         if not check_data_exists(ticker_input):
-            st.info(f"No data found for {ticker_input}. "
-                   f"Ingesting now...")
-            success = ingest_ticker(ticker_input, quarters)
-            if success:
-                st.success(f"Successfully ingested "
-                          f"{ticker_input} data!")
-        else:
-            st.success(f"Data already loaded for {ticker_input}")
+            ingest_ticker(ticker_input, quarters)
 
         # Load financial metrics
         metrics, quarterly = load_financial_data(ticker_input)
