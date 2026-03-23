@@ -509,3 +509,32 @@ else:
         if st.button("Clear Chat History"):
             st.session_state.messages = []
             st.rerun()
+
+# ── ADMIN: Pre-ingestion (hidden page) ──────────────────────────
+if st.query_params.get("admin") == "true":
+    st.markdown("---")
+    st.markdown("### Admin: Pre-embed Companies")
+
+    if st.button("Pre-embed All Blue Chip Companies"):
+        tickers = [
+            "AAPL", "MSFT", "GOOGL", "AMZN", "META",
+            "NVDA", "TSLA", "JPM", "BAC", "GS",
+            "JNJ", "UNH", "WMT", "KO", "PG", "BA", "CAT"
+        ]
+
+        progress = st.progress(0)
+        status = st.empty()
+
+        for i, ticker in enumerate(tickers):
+            status.info(f"Ingesting {ticker}... ({i+1}/{len(tickers)})")
+            try:
+                if not check_data_exists(ticker):
+                    embed_company(ticker, quarters=8)
+                    status.success(f" {ticker} ingested")
+                else:
+                    status.success(f" {ticker} already exists")
+            except Exception as e:
+                status.error(f" {ticker} failed: {e}")
+            progress.progress((i + 1) / len(tickers))
+
+        st.success("Pre-embedding complete!")
