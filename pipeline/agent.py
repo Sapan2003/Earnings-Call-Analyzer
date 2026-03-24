@@ -12,6 +12,8 @@ from utils.logger import get_logger
 load_dotenv()
 logger = get_logger("agent", "pipeline.log")
 
+SEARCH_PROVIDER = os.getenv("SEARCH_PROVIDER", "duckduckgo").lower()
+
 
 def get_api_key() -> str:
     """Get API key from environment or Streamlit secrets."""
@@ -129,7 +131,13 @@ def get_live_financial_data(ticker: str) -> str:
 
 
 # ── TOOL 3: Web Search ───────────────────────────────────────────
-search = DuckDuckGoSearchRun()
+if SEARCH_PROVIDER == "tavily":
+    from tavily import TavilyClient
+    _tavily_client = TavilyClient()
+    logger.info("Using Tavily as search provider")
+else:
+    search = DuckDuckGoSearchRun()
+    logger.info("Using DuckDuckGo as search provider")
 
 
 @tool
@@ -147,7 +155,19 @@ def search_financial_news(query: str) -> str:
     """
     logger.info(f"Tool: search_financial_news | query='{query}'")
     try:
-        result = search.run(query)
+        if SEARCH_PROVIDER == "tavily":
+            response = _tavily_client.search(
+                query=query,
+                max_results=5,
+                search_depth="basic",
+                topic="news",
+            )
+            results = []
+            for r in response["results"]:
+                results.append(f"{r['title']}\n{r['content']}")
+            result = "\n\n".join(results) if results else "No results found."
+        else:
+            result = search.run(query)
         logger.info("Tool: search_financial_news returned results")
         return result
     except Exception as e:
