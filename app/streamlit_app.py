@@ -311,7 +311,7 @@ with st.sidebar:
 
         if quarterly:
             st.session_state.quarterly_data = quarterly
-            
+
     st.markdown("---")
 
     # Example questions
