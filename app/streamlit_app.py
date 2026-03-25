@@ -381,48 +381,50 @@ st.markdown('<div class="sub-header">AI-powered financial analysis '
 
 # Show metrics dashboard if company is loaded
 if st.session_state.current_ticker and (
-    st.session_state.metrics
-    or st.session_state.quarterly_data
+    st.session_state.metrics is not None
+    or st.session_state.quarterly_data is not None
 ):
     metrics = st.session_state.metrics
     ticker = st.session_state.current_ticker
 
-    st.markdown(f"### {metrics.get('company_name', ticker)} "
-               f"({ticker})")
+    # Company name — use ticker if metrics unavailable
+    company_name = (metrics.get('company_name', ticker)
+                   if metrics else ticker)
+    st.markdown(f"### {company_name} ({ticker})")
 
-    # Key metrics row
-    col1, col2, col3, col4, col5 = st.columns(5)
+    # Key metrics row — only show if metrics available
+    if metrics:
+        col1, col2, col3, col4, col5 = st.columns(5)
 
-    with col1:
-        price = metrics.get("current_price", "N/A")
-        st.metric("Current Price",
-                 f"${price}" if price != "N/A" else "N/A")
+        with col1:
+            price = metrics.get("current_price", "N/A")
+            st.metric("Current Price",
+                     f"${price}" if price != "N/A" else "N/A")
 
-    with col2:
-        mktcap = metrics.get("market_cap", "N/A")
-        if mktcap != "N/A":
-            mktcap = f"${float(mktcap)/1e12:.2f}T"
-        st.metric("Market Cap", mktcap)
+        with col2:
+            mktcap = metrics.get("market_cap", "N/A")
+            if mktcap != "N/A":
+                mktcap = f"${float(mktcap)/1e12:.2f}T"
+            st.metric("Market Cap", mktcap)
 
-    with col3:
-        pe = metrics.get("pe_ratio", "N/A")
-        st.metric("P/E Ratio",
-                 f"{float(pe):.1f}x" if pe != "N/A" else "N/A")
+        with col3:
+            pe = metrics.get("pe_ratio", "N/A")
+            st.metric("P/E Ratio",
+                     f"{float(pe):.1f}x" if pe != "N/A" else "N/A")
 
-    with col4:
-        margin = metrics.get("profit_margin", "N/A")
-        st.metric("Profit Margin",
-                 f"{float(margin)*100:.1f}%"
-                 if margin != "N/A" else "N/A")
+        with col4:
+            margin = metrics.get("profit_margin", "N/A")
+            st.metric("Profit Margin",
+                     f"{float(margin)*100:.1f}%"
+                     if margin != "N/A" else "N/A")
 
-    with col5:
-        rec = metrics.get("recommendation", "N/A")
-        if rec != "N/A":
-            # Convert STRONG_BUY → Strong Buy
-            rec_formatted = rec.replace("_", " ").title()
-        else:
-            rec_formatted = "N/A"
-        st.metric("Analyst Rec", rec_formatted)
+        with col5:
+            rec = metrics.get("recommendation", "N/A")
+            if rec != "N/A":
+                rec_formatted = rec.replace("_", " ").title()
+            else:
+                rec_formatted = "N/A"
+            st.metric("Analyst Rec", rec_formatted)
 
     st.markdown("---")
 
@@ -438,25 +440,26 @@ if st.session_state.current_ticker and (
                 st.plotly_chart(fig, use_container_width=True)
 
     with col2:
-        fig2 = create_margins_chart(metrics)
-        if fig2:
-            st.plotly_chart(fig2, use_container_width=True)
+        if metrics:
+            fig2 = create_margins_chart(metrics)
+            if fig2:
+                st.plotly_chart(fig2, use_container_width=True)
 
-        # Additional metrics
-        st.markdown("**Key Metrics**")
-        target = metrics.get("analyst_target", "N/A")
-        high = metrics.get("52_week_high", "N/A")
-        low = metrics.get("52_week_low", "N/A")
-        div = metrics.get("dividend_yield", "N/A")
+            # Additional metrics
+            st.markdown("**Key Metrics**")
+            target = metrics.get("analyst_target", "N/A")
+            high = metrics.get("52_week_high", "N/A")
+            low = metrics.get("52_week_low", "N/A")
+            div = metrics.get("dividend_yield", "N/A")
 
-        if target != "N/A":
-            st.write(f"Analyst Target: **${float(target):.2f}**")
-        if high != "N/A":
-            st.write(f"52W High: **${float(high):.2f}**")
-        if low != "N/A":
-            st.write(f"52W Low: **${float(low):.2f}**")
-        if div != "N/A":
-            st.write(f"Dividend Yield: **{float(div):.2f}%**")
+            if target != "N/A":
+                st.write(f"Analyst Target: **${float(target):.2f}**")
+            if high != "N/A":
+                st.write(f"52W High: **${float(high):.2f}**")
+            if low != "N/A":
+                st.write(f"52W Low: **${float(low):.2f}**")
+            if div != "N/A":
+                st.write(f"Dividend Yield: **{float(div):.2f}%**")
 
     st.markdown("---")
 
