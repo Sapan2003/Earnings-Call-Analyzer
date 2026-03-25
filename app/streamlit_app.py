@@ -305,11 +305,13 @@ with st.sidebar:
 
         if metrics:
             st.session_state.metrics = metrics
-            st.session_state.quarterly_data = quarterly
         else:
             st.warning("Live market data temporarily unavailable. "
                       "Try again in a few minutes.")
 
+        if quarterly:
+            st.session_state.quarterly_data = quarterly
+            
     st.markdown("---")
 
     # Example questions
@@ -378,7 +380,10 @@ st.markdown('<div class="sub-header">AI-powered financial analysis '
            unsafe_allow_html=True)
 
 # Show metrics dashboard if company is loaded
-if st.session_state.current_ticker and st.session_state.metrics:
+if st.session_state.current_ticker and (
+    st.session_state.metrics
+    or st.session_state.quarterly_data
+):
     metrics = st.session_state.metrics
     ticker = st.session_state.current_ticker
 
