@@ -12,6 +12,24 @@ from utils.logger import get_logger
 load_dotenv()
 logger = get_logger("agent", "pipeline.log")
 
+# ── Search provider selection ───────────────────────────────────
+_tavily_client = None
+_search_provider = "duckduckgo"
+
+_tavily_api_key = os.getenv("TAVILY_API_KEY")
+if _tavily_api_key:
+    try:
+        from tavily import TavilyClient
+        _tavily_client = TavilyClient(api_key=_tavily_api_key)
+        _search_provider = "tavily"
+        logger.info("Search provider: Tavily")
+    except ImportError:
+        logger.warning("TAVILY_API_KEY is set but tavily-python is not "
+                       "installed. Falling back to DuckDuckGo.")
+else:
+    logger.info("Search provider: DuckDuckGo (set TAVILY_API_KEY to "
+                "use Tavily)")
+
 
 def get_api_key() -> str:
     """Get API key from environment or Streamlit secrets."""
@@ -129,7 +147,7 @@ def get_live_financial_data(ticker: str) -> str:
 
 
 # ── TOOL 3: Web Search ───────────────────────────────────────────
-search = DuckDuckGoSearchRun()
+_ddg_search = DuckDuckGoSearchRun()
 
 
 @tool
@@ -145,9 +163,28 @@ def search_financial_news(query: str) -> str:
     Input should be a specific search query.
     Example: 'Apple earnings Q1 2026 results analyst reaction'
     """
-    logger.info(f"Tool: search_financial_news | query='{query}'")
+    logger.info(f"Tool: search_financial_news | query='{query}' "
+                f"| provider={_search_provider}")
     try:
-        result = search.run(query)
+        if _tavily_client is not None:
+            response = _tavily_client.search(
+                query=query,
+                max_results=5,
+                search_depth="basic",
+                topic="finance",
+            )
+            results = response.get("results", [])
+            if not results:
+                return "No relevant financial news found."
+            snippets = []
+            for r in results:
+                title = r.get("title", "")
+                content = r.get("content", "")
+                url = r.get("url", "")
+                snippets.append(f"- {title}\n  {content}\n  Source: {url}")
+            result = "\n\n".join(snippets)
+        else:
+            result = _ddg_search.run(query)
         logger.info("Tool: search_financial_news returned results")
         return result
     except Exception as e:
