@@ -2,11 +2,12 @@ import os
 from dotenv import load_dotenv
 from langchain_anthropic import ChatAnthropic
 from langchain.tools import tool
-from langchain_community.tools import DuckDuckGoSearchRun
 from langgraph.prebuilt import create_react_agent
 from pipeline.retriever import retrieve_chunks, format_context
 from pipeline.financial_data import (get_financial_metrics,
                                      format_metrics_for_llm)
+from pipeline.web_search import (get_search_provider, search_news,
+                                 search_session)
 from utils.logger import get_logger
 
 load_dotenv()
@@ -129,9 +130,6 @@ def get_live_financial_data(ticker: str) -> str:
 
 
 # ── TOOL 3: Web Search ───────────────────────────────────────────
-search = DuckDuckGoSearchRun()
-
-
 @tool
 def search_financial_news(query: str) -> str:
     """
@@ -147,7 +145,7 @@ def search_financial_news(query: str) -> str:
     """
     logger.info(f"Tool: search_financial_news | query='{query}'")
     try:
-        result = search.run(query)
+        result = search_news(query)
         logger.info("Tool: search_financial_news returned results")
         return result
     except Exception as e:
@@ -186,14 +184,24 @@ def run_agent(question: str) -> dict:
         # Pick model based on question complexity
         llm = get_llm(question)
 
-        # Create agent with selected model
-        agent = create_react_agent(llm, tools, prompt=AGENT_PROMPT)
+        # Remove web access entirely when disabled, including from the prompt.
+        provider = get_search_provider()
+        active_tools = tools
+        prompt = AGENT_PROMPT
+        if provider == "none":
+            active_tools = [search_sec_filings, get_live_financial_data]
+            prompt = ("You are an expert financial analyst. Use SEC filings "
+                      "and live financial data. Web search is disabled. "
+                      "Always cite sources and include units for numbers.")
 
-        result = agent.invoke(
-            {"messages": [{"role": "user",
-                          "content": question}]},
-            config={"recursion_limit": 10}
-        )
+        agent = create_react_agent(llm, active_tools, prompt=prompt)
+
+        with search_session():
+            result = agent.invoke(
+                {"messages": [{"role": "user",
+                              "content": question}]},
+                config={"recursion_limit": 10}
+            )
 
         answer = result["messages"][-1].content
         logger.info("Agent completed successfully")

@@ -200,6 +200,20 @@ streamlit run app/streamlit_app.py
 
 Open `http://localhost:8501` in your browser.
 
+### Optional Parallel web search
+
+Set `SEARCH_PROVIDER=parallel` in `.env` or your deployment environment to use
+[Parallel Search MCP](https://docs.parallel.ai/integrations/mcp/search-mcp)
+for the agent's financial news tool. It searches recent company news and returns
+source URLs and excerpts for cited answers. Anonymous search uses Fast mode and
+requires no Parallel account or API key. Free access has usage limits; a failed
+search is reported to the agent without switching providers.
+
+DuckDuckGo remains the default (`SEARCH_PROVIDER=duckduckgo`). Set
+`SEARCH_PROVIDER=none` to remove web search from the agent. Restart the app after
+changing environment settings. SEC filings, market data and Anthropic model
+configuration work as before.
+
 ---
 
 ## Docker
